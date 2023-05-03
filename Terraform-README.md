@@ -116,15 +116,13 @@ Create main.tf file in Terraform and within your project folder. Paste the follo
         }
 
  
-For detailed information about each block in the above code please refer to this link https://www.middlewareinventory.com/blog/terraform-create-multiple-ec2-different-config/ .
-
-Once the above is done, can initialize terraform by the command:
+For detailed information about each block in the above code please refer to [5]. Once the above is done, can initialize terraform by the command:
 
         terraform init
         
 Followed by
 
-        terraform plan -var=<.tfvars file name> -out <name of output file e.g. terraplan.out>  
+        terraform plan -var-file=<.tfvars file name> -out <name of output file e.g. terraplan.out>  
         
 Apply the plan by running 
 
@@ -154,6 +152,27 @@ Before installing KUbeadm, Kubectl and Kubelet, first we have to perform network
          sudo sysctl --system
          
 Now install CRI-O in all 3 nodes. First enable cri-o repositories by
+
+         cat <<EOF | sudo tee /etc/modules-load.d/crio.conf
+         overlay
+         br_netfilter
+         EOF
+
+Set up required sysctl params in all 3 nodes:
+
+         cat <<EOF | sudo tee /etc/sysctl.d/99-kubernetes-cri.conf
+         net.bridge.bridge-nf-call-iptables  = 1
+         net.ipv4.ip_forward                 = 1
+         net.bridge.bridge-nf-call-ip6tables = 1
+         EOF
+         
+         sudo modprobe overlay
+         sudo modprobe br_netfilter
+         
+         sudo sysctl --system
+         
+Enable cri-o repositories:         
+              
 
          OS="xUbuntu_20.04"
 
@@ -190,7 +209,42 @@ Now, install kubeadm, kubelet and kubectl in all 3 nodes
          echo “deb https://apt.kubernetes.io/ kubernetes-xenial main” | sudo tee -a /etc/apt/sources.list.d/kubernetes.list
 
          sudo apt-get update -y
-         sudo apt-get install -y kubelet kubeadm kubectl        
+         sudo apt-get install -y kubelet kubeadm kubectl    
+         
+ Make sure container runtime is running, then initialize Kubeadm in master node by,
+ 
+         sudo kubeadm init --apiserver-advertise-address=<master's private IP> --pod-network-cidr=10.244.0.0/16 # Use your master node’s private IP
+         
+ You will get an output like the following:
+ 
+         kubeadm join 172.31.25.133:6443 --token y2ywn7.ve672iddvw4tn6g4 \
+        --discovery-token-ca-cert-hash sha256:f3c89c0b25ba219db3c098686b087a82881d23376787d2324ee9f0b0def02df4
+        
+ Take not of the token as it will be used later on. 
+ 
+ Now, setup kubeconfig as follows:
+ 
+          mkdir -p $HOME/.kube
+          sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+          sudo chown $(id -u):$(id -g) $HOME/.kube/config
+         
+At this stage, you should be able to list pods in the master node in kube-systen namespace
+
+          kubectl get pods -n kube-system
+          
+Install Calico network plugin
+
+          kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/calico.yaml
+
+
+
+
+[1] https://techcommunity.microsoft.com/t5/itops-talk-blog/infrastructure-as-code-iac-comparing-the-tools/ba-p/3205045
+[2] https://bluelight.co/blog/best-infrastructure-as-code-tools
+[3] https://kubevious.io/blog/post/comparing-kubernetes-container-network-interface-cni-providers
+[4] https://github.com/projectcalico/calico/issues/2561
+[5] https://www.middlewareinventory.com/blog/terraform-create-multiple-ec2-different-config/
+[6] https://kubernetes.io/blog/2020/12/02/dont-panic-kubernetes-and-docker/         
          
          
 
