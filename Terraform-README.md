@@ -269,14 +269,40 @@ Now we should be able to list all our nodes. In master node run
             worker-2   Ready    <none>          4m52s   v1.27.1
             
             
+Now we can deploy nginx webserver in our cluster and expose it through a nopeport service
+
+            kubectl create deployment test-deployment --image nginx:latest --replicas 3
+            kubectl expose deployment test-deployment --port 80 --type NodePort
+            
+Let's check which port is selected for our nodeport service
+
+            ubuntu@master:~$ kubectl get svc test-deployment
+            NAME              TYPE        CLUSTER-IP    EXTERNAL-IP   PORT(S)        AGE
+            test-deployment   NodePort    10.97.47.79   <none>        80:30101/TCP   12s
+
+Ok. The port is 30101
+
+We can confirm from a web browser using master node IP address and the above port
+
+![image](https://user-images.githubusercontent.com/28569383/235932775-73f02513-0d28-4adb-b7de-492e3c884bfa.png)
+
+
+Voila! All good...
+ 
+          
+
+            
+            
+            
             
 
-[1] https://techcommunity.microsoft.com/t5/itops-talk-blog/infrastructure-as-code-iac-comparing-the-tools/ba-p/3205045
-[2] https://bluelight.co/blog/best-infrastructure-as-code-tools
-[3] https://kubevious.io/blog/post/comparing-kubernetes-container-network-interface-cni-providers
-[4] https://github.com/projectcalico/calico/issues/2561
-[5] https://www.middlewareinventory.com/blog/terraform-create-multiple-ec2-different-config/
-[6] https://kubernetes.io/blog/2020/12/02/dont-panic-kubernetes-and-docker/         
+[1] https://techcommunity.microsoft.com/t5/itops-talk-blog/infrastructure-as-code-iac-comparing-the-tools/ba-p/3205045   
+[2] https://bluelight.co/blog/best-infrastructure-as-code-tools   
+[3] https://kubevious.io/blog/post/comparing-kubernetes-container-network-interface-cni-providers   
+[4] https://github.com/projectcalico/calico/issues/2561   
+[5] https://www.middlewareinventory.com/blog/terraform-create-multiple-ec2-different-config/   
+[6] https://kubernetes.io/blog/2020/12/02/dont-panic-kubernetes-and-docker/   
+
          
          
 
