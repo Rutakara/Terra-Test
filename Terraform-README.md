@@ -1,20 +1,20 @@
-# Creating Kubernetes cluster using Terraform, AWS EC2, Kubeadm and install 
+# Creating Kubernetes cluster using Terraform, AWS EC2, Kubeadm 
 Kubernetes and DevOps, in general, have a steep learning curve. However, one of the most effective ways to master Kubernetes is through hands-on 
-experience. In this document, I will guide you through three essential aspects of the DevOps journey. We will create an Infrastructure as Code (IaC)
- tool to spin up instances in the cloud, install a managed Kubernetes cluster, and deploy a static webpage.
+experience. In this work, I will guide you through three essential aspects of the DevOps journey. We will use an IaC  tool to create instances in the cloud, install the Kubernetes cluster, and deploy a static webpage.
 
-There are numerous choices available when it comes to Infrastructure as Code (IaC) tools. However, most of IaC tools are limited to a specific cloud 
-provider. Terraform, on the other hand, is the most widely used tool and supports all three major cloud providers, namely AWS, GCP, and Azure [1] [2].
- For this guide, we will select AWS as our cloud infrastructure provider. We will cover GCP and Azure separately in the future.
+Terraform is the most used IaC tool. Terraform and supports all three major cloud providers, namely AWS, GCP, and Azure [1] [2]. For this guide, we create EC2 instances in AWS.
 
-To bootstrap Kubernetes, we will use Kubeadm. It's important to note that Kubernetes removed Docker runtime support in release 1.22 [6] in late 2021 as Docker is not 
-CRI-compliant. Therefore, we will use CRI-O as our preferred CRI. Additionally, we will use Calico as our CNI. Calico offers superior network 
-performance, flexibility and advanced network administration security capabilities [3].
-## Creating multi-configuration aws EC2 instances
-1. When creating EC2 instances of the same configuration you easily use "count" of "for each". But if you need to create a Kubernetes cluster, a set of master nodes and a set of worker nodes will have different CPU,memory requirements and also, different security group configurations.
-2. In this work, I demonstrate how to create sets of Kubernetes master and worker nodes.
-3. This approach can be used for multiple master nodes. But for simplicity, let's consider a simple cluster with 1 master, and 2 worker nodes. 
-## Master node
+Kubernetes removed Docker runtime support in release 1.22 [6] in late 2021 as Docker is not CRI-compliant. Therefore, we will use CRI-O as our preferred CRI. Additionally, we will use Calico as our CNI. Calico offers superior network performance, flexibility and advanced network administration security capabilities [3].
+
+Requirements:
+
+1. 4 GB memory and 2 CPU for Kubernetes master node. 
+2. 1 GB memory and 1 CPU for Kubernetes worker node.  
+3. 3 aws EC2 instances. A master node and 2 worker nodes. 
+4. Virtual firewalls to allow specific inbound traffic. For these, 2 aws security groups will be configured to manage inbound traffic for both
+   master and worker nodes. The following are the ports needed:
+
+Master node:   
 Kubernetes master node hosts control plane components. These are apiserver, controller manager, scheduler, etcd, kube-proxy and kubelet. In addition, I will use Calico as CNI. As a result, the following ports need to be opened:
 1. TCP 6443      → For Kubernetes API server
 2. TCP 2379–2380 → For etcd server client API
@@ -24,14 +24,14 @@ Kubernetes master node hosts control plane components. These are apiserver, cont
 6. TCP 22        → For remote access with ssh
 7. custom protocol with type All-All for Calico 
 Create a security group in aws: Go to EC2 > Network & Security > Create seurity group. Select In-bound traffic, and configure the ports accordingly. 
-## Worker node
+Worker node:   
 Kubernetes worker node hosts kube-proxy and kubelet and therefore, their ports need to be opened. Ports within 30000 to 32767 range need to be opened in order for applications to be accessible through a nodeport service:
 1. TCP 10250       → For Kubelet API
 2. TCP 30000–32767 → NodePort Services
 3. TCP 22          → For remote access with ssh
 4. custom protocol with type All-All for Calico
 Create a security group in aws: Go to EC2 > Network & Security > Create seurity group. Select In-bound traffic, and configure the ports accordingly.      
-## Create a .tfvars terraform file
+## Terraform 
 We need to manage our instances as variables. Create a project folder. Open the folder within Terraform. Under this folder, create a .tfvars file. Paste:
 
       vm_config = [
@@ -60,7 +60,7 @@ We need to manage our instances as variables. Create a project folder. Open the 
 5. "instance_type" is instance type. We select t2.medium (2 CPUs and 4 GB RAM) for master, and t2.micro (1 CPUs and 1 GB RAM).
 6. "subnet_id" is subnet id. Here I selected default subnets. You are welcome to create your own vpc/subnets and provide the id as required.
 7.  "vpc_security_group_ids" is security groups created in previous sections.
-## Create a variable.tf terraform file
+  
 Create the variable.tf file in Terraform and within your project folder. Refer to the variable in pervious section like this:
 
         variable "vm_config" {
@@ -69,7 +69,7 @@ Create the variable.tf file in Terraform and within your project folder. Refer t
         }
         
    
- ## Create main.tf file in Terraform and within your project folder. Paste the following:
+Create main.tf file in Terraform and within your project folder. Paste the following:
  
          provider "aws" {
           region = "us-east-1"
