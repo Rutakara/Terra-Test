@@ -23,7 +23,8 @@ Kubernetes master node hosts control plane components. These are apiserver, cont
 5. TCP 10257     → For kube-controller-manager
 6. TCP 22        → For remote access with ssh
 7. custom protocol with type All-All for Calico 
-Create a security group in aws: Go to EC2 > Network & Security > Create seurity group. Select In-bound traffic, and configure the ports accordingly. 
+Create a security group in aws: Go to EC2 > Network & Security > Create seurity group. Select In-bound traffic, and configure the ports accordingly.   
+
 Worker node:   
 Kubernetes worker node hosts kube-proxy and kubelet and therefore, their ports need to be opened. Ports within 30000 to 32767 range need to be opened in order for applications to be accessible through a nodeport service:
 1. TCP 10250       → For Kubelet API
@@ -73,7 +74,7 @@ Create main.tf file in Terraform and within your project folder. Paste the follo
  
          provider "aws" {
           region = "us-east-1"
-          shared_credentials_file = "C:/Users/owner/.aws/credentials"
+          shared_credentials_file = "<path-your-secret-key>"
           }
 
         locals {
@@ -102,7 +103,7 @@ Create main.tf file in Terraform and within your project folder. Paste the follo
           ami           = each.value.ami
           instance_type = each.value.instance_type
           vpc_security_group_ids = each.value.security_groups
-          key_name = "kubeAdmin"
+          key_name = "<name-of-your-secret-key>"
           subnet_id = each.value.subnet_id
           tags = {
             Name = "${each.value.instance_name}"
@@ -129,9 +130,10 @@ Apply the plan by running
 
         terraform plan <name of output file e.g. terraplan.out> 
         
-At this point the instances will initialize and will change to running state soon after.
+At this point the instances will initialize and will change to running state soon after. In AWS, search for EC2, then select instances. Select master instance > connect > connect to instance > connect. THis will enable you to login directly to the instance. Repeat the same for the other instances.
 
-## Login to the EC2 instances
+## Kubeadm 
+
         
         
         
