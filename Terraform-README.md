@@ -236,8 +236,40 @@ Install Calico network plugin
 
           kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/calico.yaml
 
+Now when you list your pods once more, you should see Calico pods on the list. It might take a while for the Calico pods to be in a running state.
 
+            ubuntu@master:~$ kubectl get po -n kube-system 
+            NAME                                       READY   STATUS    RESTARTS   AGE
+            calico-kube-controllers-6c99c8747f-9fwcq   1/1     Running   0          3m34s
+            calico-node-79smv                          1/1     Running   0          3m34s
+            coredns-5d78c9869d-fk6z6                   1/1     Running   0          14m
+            coredns-5d78c9869d-zjxrn                   1/1     Running   0          14m
+            etcd-master                                1/1     Running   0          14m
+            kube-apiserver-master                      1/1     Running   0          14m
+            kube-controller-manager-master             1/1     Running   0          14m
+            kube-proxy-c6967                           1/1     Running   0          14m
+            kube-scheduler-master                      1/1     Running   0          14m
 
+Go to worker nodes, make sure container runtime is running 
+
+            sudo systemctl daemon-reload
+            sudo systemctl enable crio --now
+            
+Now join each worker node by our previous obtained command
+
+            sudo kubeadm join 172.31.25.133:6443 --token y2ywn7.ve672iddvw4tn6g4 \
+            --discovery-token-ca-cert-hash sha256:f3c89c0b25ba219db3c098686b087a82881d23376787d2324ee9f0b0def02df4
+            
+Now we should be able to list all our nodes. In master node run
+
+            ubuntu@master:~$ kubectl get nodes
+            NAME       STATUS   ROLES           AGE     VERSION
+            master     Ready    control-plane   25m     v1.27.1
+            worker-1   Ready    <none>          2m57s   v1.27.1
+            worker-2   Ready    <none>          4m52s   v1.27.1
+            
+            
+            
 
 [1] https://techcommunity.microsoft.com/t5/itops-talk-blog/infrastructure-as-code-iac-comparing-the-tools/ba-p/3205045
 [2] https://bluelight.co/blog/best-infrastructure-as-code-tools
