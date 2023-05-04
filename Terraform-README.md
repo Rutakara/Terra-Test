@@ -2,9 +2,9 @@
 Kubernetes and DevOps, in general, have a steep learning curve. However, one of the most effective ways to master Kubernetes is through hands-on 
 experience. In this work, I will guide you through three essential aspects of the DevOps journey. We will use an IaC  tool to create instances in the cloud, install the Kubernetes cluster, and deploy a static webpage.
 
-Terraform is the most used IaC tool. Terraform and supports all three major cloud providers, namely AWS, GCP, and Azure [1] [2]. For this guide, we create EC2 instances in AWS.
+Terraform is a popular Infrastructure as Code (IaC) tool that supports infrastructure creation across multiple cloud platforms, including the three major ones: AWS, GCP, and Azure [1][2]. In this guide, we will use Terraform to create EC2 instances specifically in AWS.
 
-Kubernetes removed Docker runtime support in release 1.22 [6] in late 2021 as Docker is not CRI-compliant. Therefore, we will use CRI-O as our preferred CRI. Additionally, we will use Calico as our CNI. Calico offers superior network performance, flexibility and advanced network administration security capabilities [3].
+In late 2021, Kubernetes removed support for the Docker runtime in release 1.22 [6] because Docker is not compliant with the Container Runtime Interface (CRI). As a result, we will be using CRI-O as our preferred CRI. Additionally, we will be using Calico as our CNI because it offers superior network performance, flexibility, and advanced network security administration capabilities [3].
 
 Requirements:
 
