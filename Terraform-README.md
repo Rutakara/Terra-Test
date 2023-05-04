@@ -8,14 +8,15 @@ In late 2021, Kubernetes removed support for the Docker runtime in release 1.22 
 
 Requirements:
 
-1. 4 GB memory and 2 CPU for Kubernetes master node. 
-2. 1 GB memory and 1 CPU for Kubernetes worker node.  
-3. 3 aws EC2 instances. A master node and 2 worker nodes. 
-4. Virtual firewalls to allow specific inbound traffic. For these, 2 aws security groups will be configured to manage inbound traffic for both
+1. A valid AWS account. 
+2. 4 GB memory and 2 CPU for Kubernetes master node. 
+3. 1 GB memory and 1 CPU for Kubernetes worker node.  
+4. 3 ASW EC2 instances. A master node and 2 worker nodes. Preferably Ubuntu 20.04
+5. Virtual firewalls to allow specific inbound traffic. For these, 2 aws security groups will be configured to manage inbound traffic for both
    master and worker nodes. The following are the ports needed:
 
 Master node:   
-Kubernetes master node hosts control plane components. These are apiserver, controller manager, scheduler, etcd, kube-proxy and kubelet. In addition, I will use Calico as CNI. As a result, the following ports need to be opened:
+Kubernetes master node hosts control plane components. These are apiserver, controller manager, scheduler, and etcd. In addition, we will use Calico as CNI. As a result, the following ports need to be opened:
 1. TCP 6443      → For Kubernetes API server
 2. TCP 2379–2380 → For etcd server client API
 3. TCP 10250     → For Kubelet API
@@ -32,8 +33,8 @@ Kubernetes worker node hosts kube-proxy and kubelet and therefore, their ports n
 3. TCP 22          → For remote access with ssh
 4. custom protocol with type All-All for Calico
 Create a security group in aws: Go to EC2 > Network & Security > Create seurity group. Select In-bound traffic, and configure the ports accordingly.      
-## Terraform 
-We need to manage our instances as variables. Create a project folder. Open the folder within Terraform. Under this folder, create a .tfvars file. Paste:
+## Terraform
+In this section, we use Terraform to create the EC2 instances in AWS. To start, create a project folder. Open the folder within Terraform. We need to manage our instances as variables. Therefore we will use .tfvars file to hold the values. So, create a .tfvars file in the project folder. Paste the following code:
 
       vm_config = [
       {
@@ -56,13 +57,13 @@ We need to manage our instances as variables. Create a project folder. Open the 
  
 1. "vm_config" is variable name. The variable is an array and it contains our two instances. 
 2. "node_name" is the name of our nodes. We are using Master and Worker.
-3. "ami" is the amazon machine image. We use Ubuntu ami-0aa2b7722dc1b5612 for this demo.
+3. "ami" is the amazon machine image. We are using Ubuntu ami-0aa2b7722dc1b5612 for this guide.
 4. "no_of_instances" is number of instances.
 5. "instance_type" is instance type. We select t2.medium (2 CPUs and 4 GB RAM) for master, and t2.micro (1 CPUs and 1 GB RAM).
 6. "subnet_id" is subnet id. Here I selected default subnets. You are welcome to create your own vpc/subnets and provide the id as required.
-7.  "vpc_security_group_ids" is security groups created in previous sections.
+7. "vpc_security_group_ids" is security groups. We use security group created in previous sections.
   
-Create the variable.tf file in Terraform and within your project folder. Refer to the variable in pervious section like this:
+Create the variable.tf file in the project folder. Paste the following code:
 
         variable "vm_config" {
           description = "List instance objects"
@@ -70,7 +71,7 @@ Create the variable.tf file in Terraform and within your project folder. Refer t
         }
         
    
-Create main.tf file in Terraform and within your project folder. Paste the following:
+Create main.tf file in Terraform and within your project folder. Paste the following code:
  
          provider "aws" {
           region = "us-east-1"
@@ -116,11 +117,11 @@ Create main.tf file in Terraform and within your project folder. Paste the follo
         }
 
  
-For detailed information about each block in the above code please refer to [5]. Once the above is done, can initialize terraform by the command:
+For detailed information about each block in the above code please refer to [5]. Once you have created the main.tf file, initialize terraform using the following command:
 
         terraform init
         
-Followed by
+After initializing terraform, get terraform plan using the following command:
 
         terraform plan -var-file=<.tfvars file name> -out <name of output file e.g. terraplan.out>  
         
@@ -128,10 +129,10 @@ Apply the plan by running
 
         terraform plan <name of output file e.g. terraplan.out> 
         
-At this point the instances will initialize and will change to running state soon after. In AWS, search for EC2, then select instances. Select master instance > connect > connect to instance > connect. THis will enable you to login directly to the instance. Repeat the same for the other instances.
+In AWS, search for EC2, then select instances. Select master instance > connect > connect to instance > connect. This will enable you to login directly to the instance. Repeat the same for the other instances. 
 
-## Kubeadm 
-Before installing KUbeadm, Kubectl and Kubelet, first we have to perform network setting in all 3 nodes to allow iptables to see bridged traffic. And secondly, we need to install CRI-O. 
+## Enable iptables bridged traffic 
+Perform network setting in all 3 nodes to allow iptables to see bridged traffic. Paste the following commands in each EC2: 
 
          cat <<EOF | sudo tee /etc/modules-load.d/k8s.conf
          overlay
@@ -151,14 +152,15 @@ Before installing KUbeadm, Kubectl and Kubelet, first we have to perform network
          # Apply sysctl params without reboot
          sudo sysctl --system
          
-Now install CRI-O in all 3 nodes. First enable cri-o repositories by
+## Configure and install CRI-O in all 3 nodes
+First, create the .conf file 
 
          cat <<EOF | sudo tee /etc/modules-load.d/crio.conf
          overlay
          br_netfilter
          EOF
 
-Set up required sysctl params in all 3 nodes:
+Set up required sysctl params:
 
          cat <<EOF | sudo tee /etc/sysctl.d/99-kubernetes-cri.conf
          net.bridge.bridge-nf-call-iptables  = 1
@@ -198,9 +200,11 @@ install cri-o
          sudo apt-get install cri-o cri-o-runc cri-tools -y
 
          sudo systemctl daemon-reload
+         sudo systemctl restart crio
          sudo systemctl enable crio
          
-Now, install kubeadm, kubelet and kubectl in all 3 nodes
+## Install Kubeadm, Kubelet and Kubectl 
+Proceed to install Kubeadm, Kubelet and Kubectl in all 3 nodes. Paste the following commands:
 
          sudo apt-get update
          sudo apt-get install -y apt-transport-https ca-certificates curl
@@ -211,7 +215,8 @@ Now, install kubeadm, kubelet and kubectl in all 3 nodes
          sudo apt-get update -y
          sudo apt-get install -y kubelet kubeadm kubectl    
          
- Make sure container runtime is running, then initialize Kubeadm in master node by,
+ ## Initialize Kubeadm in master node   
+ This part is applicable for master node. Make sure container runtime is running, then initialize Kubeadm in master node. 
  
          sudo kubeadm init --apiserver-advertise-address=<master's private IP> --pod-network-cidr=10.244.0.0/16 # Use your master node’s private IP
          
@@ -220,7 +225,7 @@ Now, install kubeadm, kubelet and kubectl in all 3 nodes
          kubeadm join 172.31.25.133:6443 --token y2ywn7.ve672iddvw4tn6g4 \
         --discovery-token-ca-cert-hash sha256:f3c89c0b25ba219db3c098686b087a82881d23376787d2324ee9f0b0def02df4
         
- Take not of the token as it will be used later on. 
+ Take note of the *kubeadm join* command and token. It will be used later on. 
  
  Now, setup kubeconfig as follows:
  
@@ -228,7 +233,7 @@ Now, install kubeadm, kubelet and kubectl in all 3 nodes
           sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
           sudo chown $(id -u):$(id -g) $HOME/.kube/config
          
-At this stage, you should be able to list pods in the master node in kube-systen namespace
+At this stage, you should be able to list pods in the master node in kube-system namespace. Type the following command in the master node:
 
           kubectl get pods -n kube-system
           
@@ -250,17 +255,18 @@ Now when you list your pods once more, you should see Calico pods on the list. I
             kube-proxy-c6967                           1/1     Running   0          14m
             kube-scheduler-master                      1/1     Running   0          14m
 
+## Join worker nodes
 Go to worker nodes, make sure container runtime is running 
 
             sudo systemctl daemon-reload
             sudo systemctl enable crio --now
             
-Now join each worker node by our previous obtained command
+Now join each worker node. Use the *kubeadm join* command. In each worker node, type the following command:
 
             sudo kubeadm join 172.31.25.133:6443 --token y2ywn7.ve672iddvw4tn6g4 \
             --discovery-token-ca-cert-hash sha256:f3c89c0b25ba219db3c098686b087a82881d23376787d2324ee9f0b0def02df4
             
-Now we should be able to list all our nodes. In master node run
+Now we should be able to list all our nodes. In master node run *kubectl get nodes* command. The output will look like the following:
 
             ubuntu@master:~$ kubectl get nodes
             NAME       STATUS   ROLES           AGE     VERSION
@@ -269,7 +275,7 @@ Now we should be able to list all our nodes. In master node run
             worker-2   Ready    <none>          4m52s   v1.27.1
             
             
-Now we can deploy nginx webserver in our cluster and expose it through a nopeport service
+Now we can deploy nginx webserver in our cluster and expose it through a nopeport service. Type the following commands in master node:
 
             kubectl create deployment test-deployment --image nginx:latest --replicas 3
             kubectl expose deployment test-deployment --port 80 --type NodePort
@@ -280,9 +286,9 @@ Let's check which port is selected for our nodeport service
             NAME              TYPE        CLUSTER-IP    EXTERNAL-IP   PORT(S)        AGE
             test-deployment   NodePort    10.97.47.79   <none>        80:30101/TCP   12s
 
-Ok. The port is 30101
+Ok. In my case the port is 30101.   
 
-We can confirm from a web browser using master node IP address and the above port
+We can confirm if our Kubernetes cluster is working by displaying an nginx page in a web browser by typing master node public IP address and the above nodeport.
 
 ![image](https://user-images.githubusercontent.com/28569383/235932775-73f02513-0d28-4adb-b7de-492e3c884bfa.png)
 
